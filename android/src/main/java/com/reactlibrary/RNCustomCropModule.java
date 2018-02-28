@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.widget.Toast;
 
@@ -34,13 +36,20 @@ public class RNCustomCropModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void crop(ReadableMap points, String base64Image, Callback successCallBack) {
+    public void crop(final ReadableMap points, final String base64Image, final Callback successCallBack) {
         try {
             Toast.makeText(reactContext, "should crop now", Toast.LENGTH_LONG).show();
-            WritableMap map = Arguments.createMap();
+            Thread thread = new Thread(new Runnable(){
+                @Override
+                public void run(){
+                    WritableMap map = Arguments.createMap();
 
-            map.putString("image", getCroppedImage(points, base64Image));
-            successCallBack.invoke(null, map);
+                    map.putString("image", getCroppedImage(points, base64Image));
+                    successCallBack.invoke(null, map);
+                }
+            });
+            thread.start();
+
         } catch (Exception e) {
             Toast.makeText(reactContext, "Unable to crop the image" + e.getMessage(), Toast.LENGTH_LONG).show();
         }
