@@ -134,9 +134,17 @@ class CustomCrop extends Component {
         bottomLeft: this.viewCoordinatesToImageCoordinates(this.state.bottomLeft),
         bottomRight: this.viewCoordinatesToImageCoordinates(this.state.bottomRight)
       };
+      // NativeModules
+      //   .CustomCropManager
+      //   .crop(coordinates, this.state.image, (err, res) => {
+      //     if (err) {
+      //       reject('Could not crop the image')
+      //     }
+      //     resolve(res.image, coordinates)
+      //   });
       NativeModules
         .CustomCropManager
-        .crop(coordinates, this.state.image, (err, res) => {
+        .findImageCorners(coordinates, this.state.image, (err, res) => {
           if (err) {
             reject('Could not crop the image')
           }
