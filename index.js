@@ -140,7 +140,11 @@ class CustomCrop extends Component {
           if (err) {
             reject('Could not crop the image')
           }
-          resolve(res.image, coordinates)
+          const result = {
+            updatedCroppedImage: res.image,
+            updatedCoordinates: coordinates
+          }
+          resolve(result)
         });
     })
   }
@@ -197,7 +201,9 @@ class CustomCrop extends Component {
           <Image
             style={[s(this.props).image, {height: this.state.viewHeight}]}
             resizeMode="contain"
-            source={{uri: `data:image/jpeg;base64,${this.state.image}`}}/>
+            source={{
+              uri: this.state.image
+            }}/>
           <Svg
             height={this.state.viewHeight}
             width={Dimensions.get('window').width}
