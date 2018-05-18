@@ -6,9 +6,13 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.net.Uri;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.facebook.react.bridge.Arguments;
@@ -19,7 +23,11 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class RNCustomCropModule extends ReactContextBaseJavaModule {
 
@@ -36,15 +44,15 @@ public class RNCustomCropModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void crop(final ReadableMap points, final String base64Image, final Callback successCallBack) {
+    public void crop(final ReadableMap points, final String uriString, final Callback successCallBack) {
         try {
-            Toast.makeText(reactContext, "should crop now", Toast.LENGTH_LONG).show();
+//            Toast.makeText(reactContext, "should crop now", Toast.LENGTH_LONG).show();
             Thread thread = new Thread(new Runnable(){
                 @Override
                 public void run(){
                     WritableMap map = Arguments.createMap();
 
-                    map.putString("image", getCroppedImage(points, base64Image));
+                    map.putString("image", getCroppedImage(points, uriString));
                     successCallBack.invoke(null, map);
                 }
             });
@@ -55,38 +63,57 @@ public class RNCustomCropModule extends ReactContextBaseJavaModule {
         }
     }
 
-    private String getCroppedImage(ReadableMap points, String base64Image) {
+    private String getCroppedImage(ReadableMap points, String uriString) {
+        try {
+            Bitmap srcBitmap = MediaStore.Images.Media.getBitmap(this.reactContext.getContentResolver(), Uri.parse(uriString));
+            if (srcBitmap == null) {
+//                Log.e("RNCustomCrop", "Bitmap is null");
+                return null;
+            } else {
+//                Log.e("RNCustomCrop", "Bitmap has a value");
+                //target size
+                int bitmapWidth = srcBitmap.getWidth();
+                int bitmapHeight = (int)(srcBitmap.getWidth()/1.586);
 
-        byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
-        Bitmap srcBitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                Bitmap bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
 
+                float[] src = new float[]{
+                        (float) points.getMap("topLeft").getDouble("x"), (float) points.getMap("topLeft").getDouble("y"),
+                        (float) points.getMap("topRight").getDouble("x"), (float) points.getMap("topRight").getDouble("y"),
+                        (float) points.getMap("bottomRight").getDouble("x"), (float) points.getMap("bottomRight").getDouble("y"),
+                        (float) points.getMap("bottomLeft").getDouble("x"), (float) points.getMap("bottomLeft").getDouble("y")
+                };
+                float[] dsc = new float[]{
+                        0, 0,
+                        bitmapWidth, 0,
+                        bitmapWidth, bitmapHeight,
+                        0, bitmapHeight
+                };
 
-        //target size
-        int bitmapWidth = srcBitmap.getWidth();
-        int bitmapHeight = (int)(srcBitmap.getWidth()/1.586);
+                Matrix matrix = new Matrix();
+                matrix.setPolyToPoly(src, 0, dsc, 0, 4);
+                canvas.drawBitmap(srcBitmap, matrix, new Paint(Paint.ANTI_ALIAS_FLAG));
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+                byte[] byteArray = byteArrayOutputStream.toByteArray();
 
-        Bitmap bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
+                File tempDir= Environment.getExternalStorageDirectory();
+                tempDir=new File(tempDir.getAbsolutePath()+"/.tmp/");
+                tempDir.mkdir();
+                File tempFile = File.createTempFile("croppedImage", ".png", tempDir);
 
-        float[] src = new float[]{
-                (float) points.getMap("topLeft").getDouble("x"), (float) points.getMap("topLeft").getDouble("y"),
-                (float) points.getMap("topRight").getDouble("x"), (float) points.getMap("topRight").getDouble("y"),
-                (float) points.getMap("bottomRight").getDouble("x"), (float) points.getMap("bottomRight").getDouble("y"),
-                (float) points.getMap("bottomLeft").getDouble("x"), (float) points.getMap("bottomLeft").getDouble("y")
-        };
-        float[] dsc = new float[]{
-                0, 0,
-                bitmapWidth, 0,
-                bitmapWidth, bitmapHeight,
-                0, bitmapHeight
-        };
+                //write the bytes in file
+                FileOutputStream fos = new FileOutputStream(tempFile);
+                fos.write(byteArray);
+                fos.flush();
+                fos.close();
+                Log.e("uri", Uri.fromFile(tempFile).toString());
 
-        Matrix matrix = new Matrix();
-        matrix.setPolyToPoly(src, 0, dsc, 0, 4);
-        canvas.drawBitmap(srcBitmap, matrix, new Paint(Paint.ANTI_ALIAS_FLAG));
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
-        byte[] byteArray = byteArrayOutputStream.toByteArray();
-        return Base64.encodeToString(byteArray, Base64.DEFAULT);
+                return Uri.fromFile(tempFile).toString();
+            }
+        } catch (IOException e) {
+            return null;
+        }
     }
 }
