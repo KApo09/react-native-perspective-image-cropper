@@ -73,7 +73,7 @@ public class RNCustomCropModule extends ReactContextBaseJavaModule {
 //                Log.e("RNCustomCrop", "Bitmap has a value");
                 //target size
                 int bitmapWidth = srcBitmap.getWidth();
-                int bitmapHeight = (int)(srcBitmap.getWidth()/1.586);
+                int bitmapHeight = (int)(srcBitmap.getHeight()/1.5);
 
                 Bitmap bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888);
                 Canvas canvas = new Canvas(bitmap);
